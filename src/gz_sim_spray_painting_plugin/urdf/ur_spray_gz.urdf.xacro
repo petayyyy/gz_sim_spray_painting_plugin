@@ -1,0 +1,240 @@
+<?xml version="1.0"?>
+<!--
+  ur_spray_gz.urdf.xacro
+  ======================
+  Extended UR description that includes the standard UR arm plus the spray
+  painting tool attached to tool0.
+
+  Compatible with the INSTALLED apt ur_description (Humble):
+    - Uses ur_description/urdf/ur_macro.xacro with generate_ros2_control_tag:=false
+    - Adds a custom ros2_control block for gz_ros2_control/GazeboSimSystem
+    - Does NOT include ur_simulation_gz/urdf/ur_gz.ros2_control.xacro
+      (that file requires a newer ur_description with urdf/inc/ur_joint_control.xacro)
+
+  Usage (from launch file):
+    xacro ur_spray_gz.urdf.xacro ur_type:=ur5e simulation_controllers:=<path>
+-->
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="ur">
+
+  <!-- ── Forward all standard UR args ────────────────────────────────────── -->
+  <xacro:arg name="name"                   default="ur"/>
+  <xacro:arg name="ur_type"                default="ur5e"/>
+  <xacro:arg name="tf_prefix"              default=""/>
+  <xacro:arg name="joint_limit_params"
+      default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
+  <xacro:arg name="kinematics_params"
+      default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
+  <xacro:arg name="physical_params"
+      default="$(find ur_description)/config/$(arg ur_type)/physical_parameters.yaml"/>
+  <xacro:arg name="visual_params"
+      default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
+  <xacro:arg name="transmission_hw_interface" default=""/>
+  <xacro:arg name="safety_limits"          default="false"/>
+  <xacro:arg name="safety_pos_margin"      default="0.15"/>
+  <xacro:arg name="safety_k_position"      default="20"/>
+  <xacro:arg name="simulation_controllers" default=""/>
+  <xacro:arg name="ros_namespace"          default=""/>
+
+  <!-- ── Spray tool args (override in launch as needed) ───────────────────── -->
+  <xacro:arg name="cone_half_angle_deg" default="10"/>
+  <xacro:arg name="cone_max_range"      default="0.8"/>
+  <xacro:arg name="spray_color"         default="1.0 0.2 0.1 1.0"/>
+  <xacro:arg name="patch_spacing"       default="0.02"/>
+
+  <!-- ── Standard UR arm kinematic description (no ros2_control tag yet) ── -->
+  <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
+
+  <!-- world anchor -->
+  <link name="world"/>
+
+  <xacro:ur_robot
+    name="$(arg name)"
+    tf_prefix="$(arg tf_prefix)"
+    parent="world"
+    joint_limits_parameters_file="$(arg joint_limit_params)"
+    kinematics_parameters_file="$(arg kinematics_params)"
+    physical_parameters_file="$(arg physical_params)"
+    visual_parameters_file="$(arg visual_params)"
+    safety_limits="$(arg safety_limits)"
+    safety_pos_margin="$(arg safety_pos_margin)"
+    safety_k_position="$(arg safety_k_position)"
+    generate_ros2_control_tag="false">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:ur_robot>
+
+  <gazebo reference="world"/>
+
+  <!-- ── gz_ros2_control Gazebo system plugin ─────────────────────────────── -->
+  <gazebo>
+    <plugin filename="gz_ros2_control-system"
+            name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(arg simulation_controllers)</parameters>
+      <ros>
+        <namespace>$(arg ros_namespace)</namespace>
+      </ros>
+    </plugin>
+  </gazebo>
+
+  <!-- ── ros2_control block using gz_ros2_control/GazeboSimSystem ─────────── -->
+  <!--
+    Written inline because the apt ur_description does not ship the
+    newer ur_joint_control.xacro used by ur_simulation_gz (workspace).
+    Only position + velocity command interfaces are exposed — sufficient
+    for joint_trajectory_controller / MoveIt.
+  -->
+  <ros2_control name="$(arg name)" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+
+    <joint name="$(arg tf_prefix)shoulder_pan_joint">
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+
+    <joint name="$(arg tf_prefix)shoulder_lift_joint">
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position">
+        <param name="initial_value">-1.5708</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+
+    <joint name="$(arg tf_prefix)elbow_joint">
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position">
+        <param name="initial_value">1.5708</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+
+    <joint name="$(arg tf_prefix)wrist_1_joint">
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position">
+        <param name="initial_value">-1.5708</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+
+    <joint name="$(arg tf_prefix)wrist_2_joint">
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position">
+        <param name="initial_value">-1.5708</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+
+    <joint name="$(arg tf_prefix)wrist_3_joint">
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+  </ros2_control>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       Spray gun — inlined from spray_nozzle.urdf, attached at finger_joint
+       (tool0 → spray_gun_base_link → spray_gun_nozzle_link)
+
+       Orientation notes:
+         • tool0  +Z  = forward out of the UR5e flange.
+         • finger_joint rpy="0 -1.5708 0" maps tool0 +Z → spray_gun_base_link +X,
+           so the gun body points straight ahead.
+         • nozzle_joint (xyz="0.12 0 0.1" rpy="0 -0.25 0") places the nozzle tip
+           ~12 cm forward and ~10 cm up from the base, spraying slightly down.
+         • The SprayPaintPlugin fires along spray_gun_nozzle_link +X.
+       ══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- Spray gun body (visual + collision from the .glb mesh) -->
+  <link name="spray_gun_base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <mesh filename="package://gz_sim_spray_painting_plugin/meshes/spray_gun/spray_gun.glb"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <mesh filename="package://gz_sim_spray_painting_plugin/meshes/spray_gun/spray_gun.glb"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.005" ixy="0" ixz="0"
+               iyy="0.005" iyz="0"
+               izz="0.005"/>
+    </inertial>
+  </link>
+
+  <!-- Fixed joint: tool0 → spray_gun_base_link                            -->
+  <!-- rpy="0 -1.5708 0" aligns the gun's +X axis with tool0's +Z (forward) -->
+  <joint name="finger_joint" type="fixed">
+    <parent link="tool0"/>
+    <child  link="spray_gun_base_link"/>
+    <origin xyz="0 0 0" rpy="0 -1.5708 0"/>
+  </joint>
+
+  <!-- Keep finger_joint as a distinct ECM entity so the spray gun body     -->
+  <!-- doesn't get merged into tool0 by the URDF→SDF converter.             -->
+  <gazebo reference="finger_joint">
+    <disableFixedJointLumping>true</disableFixedJointLumping>
+    <preserveFixedJoint>true</preserveFixedJoint>
+  </gazebo>
+
+  <!-- Nozzle tip — massless link, spray cone origin.                        -->
+  <!-- +X = spray direction (inherited from finger_joint rotation).          -->
+  <link name="spray_gun_nozzle_link">
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0"
+               iyy="0.0001" iyz="0"
+               izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <!-- Nozzle offset relative to the gun base: 12 cm forward, 10 cm up,     -->
+  <!-- pitched -0.25 rad (≈14°) to tilt the spray cone slightly downward.   -->
+  <joint name="nozzle_joint" type="fixed">
+    <parent link="spray_gun_base_link"/>
+    <child  link="spray_gun_nozzle_link"/>
+    <origin xyz="0.12 0 0.1" rpy="0 -0.25 0"/>
+  </joint>
+
+  <gazebo reference="nozzle_joint">
+    <disableFixedJointLumping>true</disableFixedJointLumping>
+    <preserveFixedJoint>true</preserveFixedJoint>
+  </gazebo>
+
+  <!-- SprayPaintPlugin — fires along spray_gun_nozzle_link +X -->
+  <gazebo>
+    <plugin filename="libSprayPaintPlugin.so"
+            name="gz::sim::systems::SprayPaintPlugin">
+      <nozzle_link>spray_gun_nozzle_link</nozzle_link>
+      <cone_half_angle_deg>$(arg cone_half_angle_deg)</cone_half_angle_deg>
+      <cone_max_range>$(arg cone_max_range)</cone_max_range>
+      <spray_color>$(arg spray_color)</spray_color>
+      <spray_topic>/spray_paint/trigger</spray_topic>
+      <particle_rate>100</particle_rate>
+      <patch_spacing>$(arg patch_spacing)</patch_spacing>
+    </plugin>
+  </gazebo>
+
+</robot>

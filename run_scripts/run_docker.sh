@@ -3,17 +3,19 @@
 # run_docker.sh  –  Start the spray-paint simulation container
 #
 # Usage:
-#   ./run_scripts/run_docker.sh [container_name=<name>] [headless] [detach]
+#   ./run_scripts/run_docker.sh [container_name=<name>] [headless] [shell] [detach]
 #
 # Arguments (all optional):
 #   container_name=<name>   Override the default container name
 #   headless                Run gz sim server-only (no GUI), default is GUI mode
+#   empty_container         Open an interactive bash shell in the container
 #   detach                  Start container in background with sleep infinity
 #                           (used by run_stack.py; launch files run via docker exec)
 #
 # Examples:
 #   ./run_scripts/run_docker.sh
 #   ./run_scripts/run_docker.sh headless
+#   ./run_scripts/run_docker.sh empty_container
 #   ./run_scripts/run_docker.sh container_name=my_sim detach
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -22,7 +24,7 @@ set -e
 # ── Defaults ──────────────────────────────────────────────────────────────────
 CONTAINER_NAME="spray_paint_stack"
 HEADLESS=false
-MODE="standalone"   # standalone | tmux_stack
+MODE="standalone"   # standalone | tmux_stack | empty_container
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
 for arg in "$@"; do
@@ -36,11 +38,15 @@ for arg in "$@"; do
         tmux_stack)
             MODE="tmux_stack"
             ;;
+        empty_container)
+            MODE="empty_container"
+            ;;
         *)
             echo "Unknown argument: $arg"
             echo "Allowed arguments:"
             echo "  container_name=<name>"
             echo "  headless"
+            echo "  empty_container"
             echo "  tmux_stack"
             exit 1
             ;;
@@ -99,9 +105,10 @@ fi
 # Plugin paths and resource paths are managed by gz_sim.launch.py via
 # SetEnvironmentVariable. Only GZ_VERSION is set here unconditionally.
 DOCKER_ARGS+=("-e" "GZ_VERSION=harmonic")
+DOCKER_ARGS+=("-e" "TERM=${TERM:-xterm-256color}")
 
 # ── Source code / install volume mounts ───────────────────────────────────────
-DOCKER_ARGS+=("-v" "$ROOT:/ws:ro")
+DOCKER_ARGS+=("-v" "$ROOT:/ws")
 
 # If a host-side install/ exists (produced by build_code.py / colcon build),
 # overlay it into the container so the freshly-built plugin takes priority.
@@ -188,7 +195,22 @@ COMMON_FLAGS=(
 echo "-> Starting container..."
 echo ""
 
-if [ "$MODE" = "tmux_stack" ]; then
+if [ "$MODE" = "empty_container" ]; then
+    echo "-> Mode: empty_container (interactive bash, running as root)"
+    docker run -it --rm \
+        --privileged \
+        --network host \
+        "${GPU_FLAGS[@]}" \
+        -e "HOME=/root" \
+        -v /dev:/dev \
+        -v /tmp:/tmp \
+        -v /etc/localtime:/etc/localtime:ro \
+        --name "$CONTAINER_NAME" \
+        --workdir /ws \
+        "${DOCKER_ARGS[@]}" \
+        "$IMAGE_NAME" \
+        bash
+elif [ "$MODE" = "tmux_stack" ]; then
     # Run the full simulation stack inside a tmux session inside the container.
     # The container stops when the tmux session ends.
     echo "-> Mode: tmux_stack (tmux session runs inside container)"
@@ -200,9 +222,9 @@ if [ "$MODE" = "tmux_stack" ]; then
 else
     # Standalone: run the full demo stack directly (manual / CI use).
     if [ "$HEADLESS" = true ]; then
-        LAUNCH_CMD="ros2 launch ur_simulation_gz ur_spray_demo.launch.py headless:=true"
+        LAUNCH_CMD="ros2 launch gz_spray_painting_plugin_demo ur_spray_demo.launch.py headless:=true"
     else
-        LAUNCH_CMD="ros2 launch ur_simulation_gz ur_spray_demo.launch.py"
+        LAUNCH_CMD="ros2 launch gz_spray_painting_plugin_demo ur_spray_demo.launch.py"
     fi
     echo "-> Launch: $LAUNCH_CMD"
     docker run -it --rm \

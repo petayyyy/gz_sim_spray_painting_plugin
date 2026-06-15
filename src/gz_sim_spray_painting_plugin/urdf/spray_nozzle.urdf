@@ -2,17 +2,18 @@
 <robot name="spray_gun_robot">
 
   <!-- Spray Gun Base Link -->
+  <!-- Spray gun body (placeholder box until spray_gun.glb is restored) -->
   <link name="spray_gun_base_link">
     <visual>
-      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://gz_sim_spray_painting_plugin/meshes/spray_gun/spray_gun.glb"/>
+        <box size="0.05 0.05 0.2"/>
       </geometry>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://gz_sim_spray_painting_plugin/meshes/spray_gun/spray_gun.glb"/>
+        <box size="0.05 0.05 0.2"/>
       </geometry>
     </collision>
     <inertial>

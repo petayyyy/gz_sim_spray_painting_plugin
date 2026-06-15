@@ -109,11 +109,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ── xacro (required to process .urdf.xacro files at launch time) ──────────────
 RUN pip3 install xacro
 
-# ur_description and gz_ros2_control are cloned into src/ and built by the
+# gz_spray_painting_plugin_demo and gz_ros2_control are cloned into src/ and built by the
 # main colcon step below (after COPY . .).
 
 # ── rosdep init (best-effort; ignore if already done) ─────────────────────────
 RUN rosdep init 2>/dev/null || true && rosdep update 2>/dev/null || true
+
+# ── Refresh GPG keys (guards against stale Docker cache invalidating signatures)
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+      -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && curl -sSL https://packages.osrfoundation.org/gazebo.gpg \
+      -o /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
 
 # ── X11 / display libraries for gz-sim GUI ────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -142,17 +148,16 @@ COPY . .
 RUN . /opt/ros/humble/setup.sh \
     && GZ_VERSION=harmonic colcon build \
          --packages-select \
-           ur_description \
            gz_ros2_control \
-           ur_simulation_gz \
+           gz_spray_painting_plugin_demo \
            gz_sim_spray_painting_plugin \
          --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    && rm -rf build/ur_description build/gz_ros2_control \
-              build/ur_simulation_gz build/gz_sim_spray_painting_plugin
+    && rm -rf build/gz_ros2_control \
+              build/gz_spray_painting_plugin_demo build/gz_sim_spray_painting_plugin
 
 # ── Runtime environment ───────────────────────────────────────────────────────
 ENV GZ_SIM_SYSTEM_PLUGIN_PATH=/ws/install/gz_sim_spray_painting_plugin/lib/gz_sim_spray_painting_plugin:/ws/install/gz_ros2_control/lib
-ENV GZ_SIM_RESOURCE_PATH=/ws/install/ur_description/share
+ENV GZ_SIM_RESOURCE_PATH=/ws/install/gz_spray_painting_plugin_demo/share
 ENV GZ_VERSION=harmonic
 # Source ROS and the colcon workspace in every shell session
 RUN echo ". /opt/ros/humble/setup.bash" >> /etc/bash.bashrc \

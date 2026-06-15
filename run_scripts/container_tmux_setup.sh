@@ -8,17 +8,21 @@
 
 SESSION="spray_paint"
 
+# Ensure arrow keys and readline work inside tmux panes.
+export TERM="${TERM:-xterm-256color}"
+printf 'set -g default-terminal "screen-256color"\nset -g terminal-overrides ",xterm-256color:Tc"\n' > /tmp/.tmux_spray.conf
+
 # Source ROS + colcon install so ros2 launch works in every pane.
 . /opt/ros/humble/setup.bash
 . /ws/install/setup.bash
 
 # ── Window 0: sim ────────────────────────────────────────────────────────────
-# ur_spray_demo.launch.py (now in ur_simulation_gz) starts Gazebo, spawns the
+# ur_spray_demo.launch.py (now in gz_spray_painting_plugin_demo) starts Gazebo, spawns the
 # robot, brings up MoveIt, and bridges /clock and /spray_paint/trigger.
-tmux new-session -d -s "$SESSION" -n sim -x 220 -y 50
+tmux -f /tmp/.tmux_spray.conf new-session -d -s "$SESSION" -n sim -x 220 -y 50
 
 tmux send-keys -t "$SESSION:sim.0" \
-    "ros2 launch ur_simulation_gz ur_spray_demo.launch.py" Enter
+    "ros2 launch gz_spray_painting_plugin_demo ur_spray_demo.launch.py" Enter
 
 # ── Window 1: cartesian_spray ─────────────────────────────────────────────────
 tmux new-window -t "$SESSION" -n cartesian_spray
@@ -26,7 +30,7 @@ tmux new-window -t "$SESSION" -n cartesian_spray
 # Top pane: auto-execute after 70s delay — gives the stack enough time to
 # fully start (Gazebo + robot spawn + MoveIt) before the executor connects.
 tmux send-keys -t "$SESSION:cartesian_spray.0" \
-    "sleep 20 && ros2 launch ur_simulation_gz cartesian_spray.launch.py" Enter
+    "sleep 20 && ros2 launch gz_spray_painting_plugin_demo cartesian_spray.launch.py" Enter
 
 # Bottom pane: log monitor (split horizontally)
 tmux split-window -t "$SESSION:cartesian_spray" -h
@@ -61,4 +65,4 @@ tmux select-pane -t "$SESSION:spray_control.0"
 tmux select-window -t "$SESSION:sim"
 
 # Attach – keeps the container alive. When this session ends the container stops.
-tmux attach-session -t "$SESSION"
+tmux -f /tmp/.tmux_spray.conf attach-session -t "$SESSION"

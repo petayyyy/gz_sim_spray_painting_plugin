@@ -27,7 +27,7 @@ def generate_launch_description():
     pkg_share  = get_package_share_directory("gz_sim_spray_painting_plugin")
     pkg_prefix = get_package_prefix("gz_sim_spray_painting_plugin")
     ur_sim_models = os.path.join(
-        get_package_share_directory("ur_simulation_gz"), "models"
+        get_package_share_directory("gz_spray_painting_plugin_demo"), "models"
     )
 
     world_path        = os.path.join(pkg_share, "worlds", "spray_painting.sdf")

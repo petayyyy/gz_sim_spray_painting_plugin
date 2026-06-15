@@ -2,14 +2,10 @@
 <!--
   ur_spray_gz.urdf.xacro
   ======================
-  Extended UR description that includes the standard UR arm plus the spray
+  Extended UR5e description that includes the standard UR arm plus the spray
   painting tool attached to tool0.
 
-  Compatible with the INSTALLED apt ur_description (Humble):
-    - Uses ur_description/urdf/ur_macro.xacro with generate_ros2_control_tag:=false
-    - Adds a custom ros2_control block for gz_ros2_control/GazeboSimSystem
-    - Does NOT include ur_simulation_gz/urdf/ur_gz.ros2_control.xacro
-      (that file requires a newer ur_description with urdf/inc/ur_joint_control.xacro)
+  Robot xacro and configs are resolved from gz_spray_painting_plugin_demo.
 
   Usage (from launch file):
     xacro ur_spray_gz.urdf.xacro ur_type:=ur5e simulation_controllers:=<path>
@@ -21,13 +17,13 @@
   <xacro:arg name="ur_type"                default="ur5e"/>
   <xacro:arg name="tf_prefix"              default=""/>
   <xacro:arg name="joint_limit_params"
-      default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
+      default="$(find gz_spray_painting_plugin_demo)/config/$(arg ur_type)/joint_limits.yaml"/>
   <xacro:arg name="kinematics_params"
-      default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
+      default="$(find gz_spray_painting_plugin_demo)/config/$(arg ur_type)/default_kinematics.yaml"/>
   <xacro:arg name="physical_params"
-      default="$(find ur_description)/config/$(arg ur_type)/physical_parameters.yaml"/>
+      default="$(find gz_spray_painting_plugin_demo)/config/$(arg ur_type)/physical_parameters.yaml"/>
   <xacro:arg name="visual_params"
-      default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
+      default="$(find gz_spray_painting_plugin_demo)/config/$(arg ur_type)/visual_parameters.yaml"/>
   <xacro:arg name="transmission_hw_interface" default=""/>
   <xacro:arg name="safety_limits"          default="false"/>
   <xacro:arg name="safety_pos_margin"      default="0.15"/>
@@ -42,7 +38,7 @@
   <xacro:arg name="patch_spacing"       default="0.02"/>
 
   <!-- ── Standard UR arm kinematic description (no ros2_control tag yet) ── -->
-  <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
+  <xacro:include filename="$(find gz_spray_painting_plugin_demo)/urdf/ur_macro.xacro"/>
 
   <!-- world anchor -->
   <link name="world"/>
@@ -77,8 +73,8 @@
 
   <!-- ── ros2_control block using gz_ros2_control/GazeboSimSystem ─────────── -->
   <!--
-    Written inline because the apt ur_description does not ship the
-    newer ur_joint_control.xacro used by ur_simulation_gz (workspace).
+    Written inline because gz_spray_painting_plugin_demo does not include
+    ur_joint_control.xacro (not needed for the UR5e spray demo).
     Only position + velocity command interfaces are exposed — sufficient
     for joint_trajectory_controller / MoveIt.
   -->
@@ -148,74 +144,41 @@
     </joint>
   </ros2_control>
 
-  <!-- ══════════════════════════════════════════════════════════════════════
-       Spray gun — inlined from spray_nozzle.urdf, attached at finger_joint
-       (tool0 → spray_gun_base_link → spray_gun_nozzle_link)
-
-       Orientation notes:
-         • tool0  +Z  = forward out of the UR5e flange.
-         • finger_joint rpy="0 -1.5708 0" maps tool0 +Z → spray_gun_base_link +X,
-           so the gun body points straight ahead.
-         • nozzle_joint (xyz="0.12 0 0.1" rpy="0 -0.25 0") places the nozzle tip
-           ~12 cm forward and ~10 cm up from the base, spraying slightly down.
-         • The SprayPaintPlugin fires along spray_gun_nozzle_link +X.
-       ══════════════════════════════════════════════════════════════════════ -->
-
-  <!-- Spray gun body (visual + collision from the .glb mesh) -->
+  <!-- Spray gun body -->
   <link name="spray_gun_base_link">
     <visual>
-      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://gz_sim_spray_painting_plugin/meshes/spray_gun/spray_gun.glb"/>
+        <mesh filename="package://gz_sim_spray_painting_plugin/meshes/spray_gun/spray_gun.glb" scale="1 1 1"/>
       </geometry>
     </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
-      <geometry>
-        <mesh filename="package://gz_sim_spray_painting_plugin/meshes/spray_gun/spray_gun.glb"/>
-      </geometry>
-    </collision>
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <mass value="1.0"/>
-      <inertia ixx="0.005" ixy="0" ixz="0"
-               iyy="0.005" iyz="0"
-               izz="0.005"/>
+      <inertia ixx="0.005" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.005"/>
     </inertial>
   </link>
-
-  <!-- Fixed joint: tool0 → spray_gun_base_link                            -->
-  <!-- rpy="0 -1.5708 0" aligns the gun's +X axis with tool0's +Z (forward) -->
-  <joint name="finger_joint" type="fixed">
+  <joint name="spray_gun_base_to_tool0" type="fixed">
     <parent link="tool0"/>
     <child  link="spray_gun_base_link"/>
-    <origin xyz="0 0 0" rpy="0 -1.5708 0"/>
+    <origin xyz="0 0 0" rpy="0 0.0 0"/>
   </joint>
 
-  <!-- Keep finger_joint as a distinct ECM entity so the spray gun body     -->
-  <!-- doesn't get merged into tool0 by the URDF→SDF converter.             -->
   <gazebo reference="finger_joint">
     <disableFixedJointLumping>true</disableFixedJointLumping>
     <preserveFixedJoint>true</preserveFixedJoint>
   </gazebo>
 
-  <!-- Nozzle tip — massless link, spray cone origin.                        -->
-  <!-- +X = spray direction (inherited from finger_joint rotation).          -->
   <link name="spray_gun_nozzle_link">
     <inertial>
       <mass value="0.01"/>
-      <inertia ixx="0.0001" ixy="0" ixz="0"
-               iyy="0.0001" iyz="0"
-               izz="0.0001"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
     </inertial>
   </link>
-
-  <!-- Nozzle offset relative to the gun base: 12 cm forward, 10 cm up,     -->
-  <!-- pitched -0.25 rad (≈14°) to tilt the spray cone slightly downward.   -->
   <joint name="nozzle_joint" type="fixed">
     <parent link="spray_gun_base_link"/>
     <child  link="spray_gun_nozzle_link"/>
-    <origin xyz="0.12 0 0.1" rpy="0 -0.25 0"/>
+    <origin xyz="0.0 -0.13 0.16" rpy="0.0 -1.57 0.0"/>
   </joint>
 
   <gazebo reference="nozzle_joint">
@@ -223,7 +186,6 @@
     <preserveFixedJoint>true</preserveFixedJoint>
   </gazebo>
 
-  <!-- SprayPaintPlugin — fires along spray_gun_nozzle_link +X -->
   <gazebo>
     <plugin filename="libSprayPaintPlugin.so"
             name="gz::sim::systems::SprayPaintPlugin">

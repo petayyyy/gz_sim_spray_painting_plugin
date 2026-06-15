@@ -20,8 +20,7 @@
   <exec_depend>ros_gz_bridge</exec_depend>
 
   <!-- UR5e demo dependencies -->
-  <exec_depend>ur_simulation_gz</exec_depend>
-  <exec_depend>ur_description</exec_depend>
+  <exec_depend>gz_spray_painting_plugin_demo</exec_depend>
   <exec_depend>ur_moveit_config</exec_depend>
   <exec_depend>moveit_ros_planning_interface</exec_depend>
   <exec_depend>moveit_py</exec_depend>

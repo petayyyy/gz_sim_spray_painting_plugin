@@ -83,6 +83,7 @@ private:
 
   gz::sim::Entity        emitterEntity_{gz::sim::kNullEntity};
   bool                   lastEmitterState_{false};
+  uint32_t               emitterCounter_{0};   // unique suffix for each emitter name
 
   // Set once after nozzle entity is found and rays are attached.
   bool raysAttached_{false};

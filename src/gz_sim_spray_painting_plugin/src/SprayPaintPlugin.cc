@@ -505,7 +505,7 @@ void SprayPaintPlugin::PreUpdate(
         std::max((2.0 * coneRadiusAtMax - kInitSize) / kLifetime, 0.01);
 
     sdf::ParticleEmitter emitterSdf;
-    emitterSdf.SetName("spray_emitter");
+    emitterSdf.SetName("spray_emitter_" + std::to_string(++emitterCounter_));
     emitterSdf.SetType(sdf::ParticleEmitterType::POINT);
     emitterSdf.SetEmitting(true);
     emitterSdf.SetRate(particleRate_);
@@ -521,6 +521,10 @@ void SprayPaintPlugin::PreUpdate(
         gz::math::Vector3d(kInitSize, kInitSize, kInitSize));
     emitterSdf.SetScaleRate(scaleRate);
     emitterSdf.SetSize(gz::math::Vector3d(0.005, 0.005, 0.005));
+
+    // Local pose zero relative to nozzle — SetParent keeps it as-is (LOCAL).
+    // STEP 3c re-asserts zero every PreUpdate so any SetParent-induced drift
+    // on 2nd+ activations is corrected before PostUpdate renders it.
     emitterSdf.SetRawPose(gz::math::Pose3d(0, 0, 0, 0, 0, 0));
 
     sdf::Material emitterMat;
@@ -535,6 +539,16 @@ void SprayPaintPlugin::PreUpdate(
 
     Log("PreUpdate", "emitter",
         "recreated entity=" + std::to_string(emitterEntity_));
+  }
+
+  // ── STEP 3c: Force emitter local Pose to zero every frame ────────────────
+  // Uses CreateComponent (not raw pointer write) so the ECM marks the Pose
+  // as Changed, triggering the renderer to reposition the Ogre2 scene node.
+  // World pose = nozzle_world + local(0,0,0) = nozzle_world ✓ every cycle.
+  if (emitterEntity_ != kNullEntity)
+  {
+    _ecm.CreateComponent(emitterEntity_,
+        gz::sim::components::Pose(gz::math::Pose3d::Zero));
   }
 
   // ── STEP 4: Guard – do nothing if spray not active ────────────────────────

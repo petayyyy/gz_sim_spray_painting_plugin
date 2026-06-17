@@ -7,7 +7,7 @@ log/
 file_logs/
 
 # ── Claude Code local settings (user-specific permissions) ───────────────────
-.claude/settings.local.json
+.claude/*
 
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/

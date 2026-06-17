@@ -60,7 +60,7 @@ private:
   void OnSprayMsg(const gz::msgs::Boolean &_msg);
 
   // Config
-  std::string     nozzleLink_{"nozzle_link"};
+  std::string     nozzleLink_{"spray_gun_nozzle_link"};
   double          coneHalfAngle_{0.2618};    // 15° in radians
   double          coneMaxRange_{3.0};
   gz::math::Color sprayColor_{1.0f, 0.2f, 0.1f, 1.0f};

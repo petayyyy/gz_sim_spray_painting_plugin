@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<robot name="spray_gun_robot">
+
+  <!-- Spray Gun Base Link -->
+  <link name="spray_gun_base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://gz_spray_painting_plugin_demo/meshes/spray_gun/spray_gun.glb" scale="1 1 1"/>
+      </geometry>
+    </visual>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.005" ixy="0" ixz="0"
+               iyy="0.005" iyz="0"
+               izz="0.005"/>
+    </inertial>
+  </link>
+
+  <!-- Spray Gun Nozzle Link -->
+  <!--
+    spray_gun_nozzle_link: spray cone origin.
+    +X axis = spray direction.
+    Offset xyz should be tuned to match the actual nozzle tip on the mesh.
+  -->
+  <link name="spray_gun_nozzle_link">
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0"
+               iyy="0.0001" iyz="0"
+               izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <joint name="nozzle_joint" type="fixed">
+    <parent link="spray_gun_base_link"/>
+    <child  link="spray_gun_nozzle_link"/>
+    <origin xyz="0.0 -0.13 0.16" rpy="0.0 -1.57 0.0"/>
+  </joint>
+
+  <gazebo reference="nozzle_joint">
+    <disableFixedJointLumping>true</disableFixedJointLumping>
+    <preserveFixedJoint>true</preserveFixedJoint>
+  </gazebo>
+
+  <!-- Spray Painting Gazebo Plugin
+       All parameters are optional; values shown are the built-in defaults.
+
+       nozzle_link          : link whose +X axis is the spray direction
+       cone_half_angle_deg  : half-angle of the paint cone (degrees)
+       cone_max_range       : maximum spray reach (metres)
+       spray_color          : RGBA paint colour applied to patches and particles
+       spray_topic          : gz.msgs.Boolean trigger topic
+       particle_rate        : particle cloud density (particles / second)
+       num_rays             : rays sampled across the cone per scan interval
+                              (Fibonacci disk sampling; 1 = centre ray only)
+       patch_spacing        : minimum centre-to-centre gap between patches (metres)
+       paint_interval_steps : run the ray scan every N simulation steps
+  -->
+  <gazebo>
+    <static>true</static>
+    <plugin filename="libSprayPaintPlugin.so"
+            name="gz::sim::systems::SprayPaintPlugin">
+      <nozzle_link>spray_gun_nozzle_link</nozzle_link>
+      <cone_half_angle_deg>15</cone_half_angle_deg>
+      <cone_max_range>1.0</cone_max_range>
+      <spray_color>1.0 0.2 0.1 1.0</spray_color>
+      <spray_topic>/spray_paint/trigger</spray_topic>
+      <particle_rate>100</particle_rate>
+      <num_rays>16</num_rays>
+      <patch_spacing>0.02</patch_spacing>
+      <paint_interval_steps>10</paint_interval_steps>
+    </plugin>
+  </gazebo>
+
+</robot>

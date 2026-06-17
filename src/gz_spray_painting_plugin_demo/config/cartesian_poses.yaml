@@ -1,0 +1,103 @@
+# TCP poses in robot base frame. Sweep: right→left (robot base +Y direction).
+# Start: pos=(0.3601, -0.3506, 0.2327)
+# Orientation (xyzw): (-0.0002, 0.7889, 0.0001, 0.6145) — fixed throughout
+# Sweep distance: 0.7 m  (8 waypoints)
+# shoulder_pan shifted by +π to flip robot 180° to face prius
+#
+poses:
+  - name: wp0
+    position:    {x: 0.360060, y: -0.350600, z: 0.232681}
+    orientation: {x: -0.000199, y: 0.788926, z: 0.000129, w: 0.614488}
+
+  - name: wp1
+    position:    {x: 0.360060, y: -0.250600, z: 0.232681}
+    orientation: {x: -0.000199, y: 0.788926, z: 0.000129, w: 0.614488}
+
+  - name: wp2
+    position:    {x: 0.360060, y: -0.150600, z: 0.232681}
+    orientation: {x: -0.000199, y: 0.788926, z: 0.000129, w: 0.614488}
+
+  - name: wp3
+    position:    {x: 0.360060, y: -0.050600, z: 0.232681}
+    orientation: {x: -0.000199, y: 0.788926, z: 0.000129, w: 0.614488}
+
+  - name: wp4
+    position:    {x: 0.360060, y: 0.049400, z: 0.232681}
+    orientation: {x: -0.000199, y: 0.788926, z: 0.000129, w: 0.614488}
+
+  - name: wp5
+    position:    {x: 0.360060, y: 0.149400, z: 0.232681}
+    orientation: {x: -0.000199, y: 0.788926, z: 0.000129, w: 0.614488}
+
+  - name: wp6
+    position:    {x: 0.360060, y: 0.249400, z: 0.232681}
+    orientation: {x: -0.000199, y: 0.788926, z: 0.000129, w: 0.614488}
+
+  - name: wp7
+    position:    {x: 0.360060, y: 0.349400, z: 0.232681}
+    orientation: {x: -0.000199, y: 0.788926, z: 0.000129, w: 0.614488}
+
+joint_configs:
+  - name: wp0
+    shoulder_pan_joint: 2.52402
+    shoulder_lift_joint: -1.85965
+    elbow_joint: -1.87007
+    wrist_1_joint: -2.85389
+    wrist_2_joint: -2.16736
+    wrist_3_joint: -1.74316
+
+  - name: wp1
+    shoulder_pan_joint: 2.75647
+    shoulder_lift_joint: -1.68396
+    elbow_joint: -2.08909
+    wrist_1_joint: -2.77617
+    wrist_2_joint: -1.94406
+    wrist_3_joint: -1.66988
+
+  - name: wp2
+    shoulder_pan_joint: 3.07691
+    shoulder_lift_joint: -1.52829
+    elbow_joint: -2.25069
+    wrist_1_joint: -2.75203
+    wrist_2_joint: -1.63395
+    wrist_3_joint: -1.58681
+
+  - name: wp3
+    shoulder_pan_joint: 3.47162
+    shoulder_lift_joint: -1.43120
+    elbow_joint: -2.33696
+    wrist_1_joint: -2.77580
+    wrist_2_joint: -1.25162
+    wrist_3_joint: -1.48730
+
+  - name: wp4
+    shoulder_pan_joint: 3.84719
+    shoulder_lift_joint: -1.44862
+    elbow_joint: -2.32794
+    wrist_1_joint: -2.82678
+    wrist_2_joint: -0.89128
+    wrist_3_joint: -1.36542
+
+  - name: wp5
+    shoulder_pan_joint: 4.11299
+    shoulder_lift_joint: -1.57557
+    elbow_joint: -2.22265
+    wrist_1_joint: -2.90554
+    wrist_2_joint: -0.64300
+    wrist_3_joint: -1.22710
+
+  - name: wp6
+    shoulder_pan_joint: 4.27569
+    shoulder_lift_joint: -1.75206
+    elbow_joint: -2.04111
+    wrist_1_joint: -3.02778
+    wrist_2_joint: -0.49831
+    wrist_3_joint: -1.08828
+
+  - name: wp7
+    shoulder_pan_joint: 4.37574
+    shoulder_lift_joint: -1.94192
+    elbow_joint: -1.80215
+    wrist_1_joint: -3.19112
+    wrist_2_joint: -0.41529
+    wrist_3_joint: -0.96113

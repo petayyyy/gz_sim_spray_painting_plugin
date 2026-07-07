@@ -45,6 +45,21 @@ namespace gz::sim::systems
 
 SprayPaintPlugin::SprayPaintPlugin() = default;
 
+namespace
+{
+double ClampDouble(double value, double minValue, double maxValue)
+{
+  return std::clamp(value, minValue, maxValue);
+}
+
+std::string DefaultTopic(const std::string &base, const std::string &suffix)
+{
+  if (base.empty())
+    return suffix;
+  return base.back() == '/' ? base + suffix : base + "/" + suffix;
+}
+}
+
 // Logging helpers
 
 /**
@@ -328,11 +343,71 @@ void SprayPaintPlugin::Configure(
   if (_sdf->HasElement("enable_particle_emitter"))
     enableParticleEmitter_ = _sdf->Get<bool>("enable_particle_emitter");
 
+  pendingConeHalfAngle_ = coneHalfAngle_;
+  pendingConeMaxRange_ = coneMaxRange_;
+  pendingSprayColor_ = sprayColor_;
+  pendingParticleRate_ = particleRate_;
+  pendingPatchSpacing_ = patchSpacing_;
+  pendingPaintIntervalSteps_ = paintIntervalSteps_;
+  pendingNumRays_ = numRays_;
+  pendingEnableParticleEmitter_ = enableParticleEmitter_;
+
+  sprayColorTopic_ = DefaultTopic(sprayTopic_, "color");
+  sprayConeTopic_ = DefaultTopic(sprayTopic_, "cone_half_angle_deg");
+  sprayRangeTopic_ = DefaultTopic(sprayTopic_, "range");
+  sprayParticleRateTopic_ = DefaultTopic(sprayTopic_, "particle_rate");
+  sprayNumRaysTopic_ = DefaultTopic(sprayTopic_, "num_rays");
+  sprayPatchSpacingTopic_ = DefaultTopic(sprayTopic_, "patch_spacing");
+  sprayPaintIntervalStepsTopic_ = DefaultTopic(sprayTopic_, "paint_interval_steps");
+  sprayEnableParticleEmitterTopic_ = DefaultTopic(sprayTopic_, "enable_particle_emitter");
+
+  if (_sdf->HasElement("spray_color_topic"))
+    sprayColorTopic_ = _sdf->Get<std::string>("spray_color_topic");
+
+  if (_sdf->HasElement("spray_cone_topic"))
+    sprayConeTopic_ = _sdf->Get<std::string>("spray_cone_topic");
+
+  if (_sdf->HasElement("spray_range_topic"))
+    sprayRangeTopic_ = _sdf->Get<std::string>("spray_range_topic");
+
+  if (_sdf->HasElement("spray_particle_rate_topic"))
+    sprayParticleRateTopic_ = _sdf->Get<std::string>("spray_particle_rate_topic");
+
+  if (_sdf->HasElement("spray_num_rays_topic"))
+    sprayNumRaysTopic_ = _sdf->Get<std::string>("spray_num_rays_topic");
+
+  if (_sdf->HasElement("spray_patch_spacing_topic"))
+    sprayPatchSpacingTopic_ = _sdf->Get<std::string>("spray_patch_spacing_topic");
+
+  if (_sdf->HasElement("spray_paint_interval_steps_topic"))
+    sprayPaintIntervalStepsTopic_ =
+        _sdf->Get<std::string>("spray_paint_interval_steps_topic");
+
+  if (_sdf->HasElement("spray_enable_particle_emitter_topic"))
+    sprayEnableParticleEmitterTopic_ =
+        _sdf->Get<std::string>("spray_enable_particle_emitter_topic");
+
   // 2. Cache EventManager pointer
   eventMgr_ = &_eventMgr;
 
-  // 3. Subscribe to trigger topic
+  // 3. Subscribe to trigger and runtime configuration topics
   transportNode_.Subscribe(sprayTopic_, &SprayPaintPlugin::OnSprayMsg, this);
+  transportNode_.Subscribe(sprayColorTopic_,
+      &SprayPaintPlugin::OnSprayColorMsg, this);
+  transportNode_.Subscribe(sprayConeTopic_,
+      &SprayPaintPlugin::OnConeHalfAngleMsg, this);
+  transportNode_.Subscribe(sprayRangeTopic_,
+      &SprayPaintPlugin::OnConeMaxRangeMsg, this);
+  transportNode_.Subscribe(sprayParticleRateTopic_,
+      &SprayPaintPlugin::OnParticleRateMsg, this);
+  transportNode_.Subscribe(sprayNumRaysTopic_,
+      &SprayPaintPlugin::OnNumRaysMsg, this);
+  transportNode_.Subscribe(sprayPatchSpacingTopic_,
+      &SprayPaintPlugin::OnPatchSpacingMsg, this);
+  transportNode_.Subscribe(sprayPaintIntervalStepsTopic_,
+      &SprayPaintPlugin::OnPaintIntervalStepsMsg, this);
+  transportNode_.Subscribe(sprayEnableParticleEmitterTopic_,
+      &SprayPaintPlugin::OnEnableParticleEmitterMsg, this);
 
   // 4. Log startup banner
   LogSection("SprayPaintPlugin  –  Configure");
@@ -345,6 +420,14 @@ void SprayPaintPlugin::Configure(
       " G=" + std::to_string(sprayColor_.G()) +
       " B=" + std::to_string(sprayColor_.B()));
   Log("Configure", "topic",          sprayTopic_);
+  Log("Configure", "color_topic",    sprayColorTopic_);
+  Log("Configure", "cone_topic",     sprayConeTopic_);
+  Log("Configure", "range_topic",    sprayRangeTopic_);
+  Log("Configure", "particle_rate_topic", sprayParticleRateTopic_);
+  Log("Configure", "num_rays_topic", sprayNumRaysTopic_);
+  Log("Configure", "patch_spacing_topic", sprayPatchSpacingTopic_);
+  Log("Configure", "paint_interval_topic", sprayPaintIntervalStepsTopic_);
+  Log("Configure", "emitter_topic",  sprayEnableParticleEmitterTopic_);
   Log("Configure", "particle_rate",     std::to_string(particleRate_) + " /s");
   Log("Configure", "patch_spacing",     std::to_string(patchSpacing_) + " m");
   Log("Configure", "paint_interval",    std::to_string(paintIntervalSteps_) + " steps");
@@ -381,6 +464,144 @@ void SprayPaintPlugin::OnSprayMsg(const gz::msgs::Boolean &_msg)
   }
 }
 
+void SprayPaintPlugin::OnSprayColorMsg(const gz::msgs::Color &_msg)
+{
+  std::lock_guard<std::mutex> lock(configMutex_);
+  pendingSprayColor_ = gz::math::Color(
+      ClampDouble(_msg.r(), 0.0, 1.0),
+      ClampDouble(_msg.g(), 0.0, 1.0),
+      ClampDouble(_msg.b(), 0.0, 1.0),
+      ClampDouble(_msg.a(), 0.0, 1.0));
+  runtimeConfigDirty_ = true;
+  runtimeEmitterDirty_ = true;
+}
+
+void SprayPaintPlugin::OnConeHalfAngleMsg(const gz::msgs::Double &_msg)
+{
+  std::lock_guard<std::mutex> lock(configMutex_);
+  pendingConeHalfAngle_ = ClampDouble(_msg.data(), 0.1, 89.0) * M_PI / 180.0;
+  runtimeConfigDirty_ = true;
+  runtimeRaysDirty_ = true;
+  runtimeEmitterDirty_ = true;
+}
+
+void SprayPaintPlugin::OnConeMaxRangeMsg(const gz::msgs::Double &_msg)
+{
+  std::lock_guard<std::mutex> lock(configMutex_);
+  pendingConeMaxRange_ = std::max(_msg.data(), 0.01);
+  runtimeConfigDirty_ = true;
+  runtimeRaysDirty_ = true;
+  runtimeEmitterDirty_ = true;
+}
+
+void SprayPaintPlugin::OnParticleRateMsg(const gz::msgs::Double &_msg)
+{
+  std::lock_guard<std::mutex> lock(configMutex_);
+  pendingParticleRate_ = std::max(_msg.data(), 0.0);
+  runtimeConfigDirty_ = true;
+  runtimeEmitterDirty_ = true;
+}
+
+void SprayPaintPlugin::OnNumRaysMsg(const gz::msgs::Int32 &_msg)
+{
+  std::lock_guard<std::mutex> lock(configMutex_);
+  pendingNumRays_ = std::clamp(_msg.data(), 1, 512);
+  runtimeConfigDirty_ = true;
+  runtimeRaysDirty_ = true;
+}
+
+void SprayPaintPlugin::OnPatchSpacingMsg(const gz::msgs::Double &_msg)
+{
+  std::lock_guard<std::mutex> lock(configMutex_);
+  pendingPatchSpacing_ = std::max(_msg.data(), 0.001);
+  runtimeConfigDirty_ = true;
+}
+
+void SprayPaintPlugin::OnPaintIntervalStepsMsg(const gz::msgs::Int32 &_msg)
+{
+  std::lock_guard<std::mutex> lock(configMutex_);
+  pendingPaintIntervalSteps_ = static_cast<uint32_t>(std::max(_msg.data(), 1));
+  runtimeConfigDirty_ = true;
+}
+
+void SprayPaintPlugin::OnEnableParticleEmitterMsg(const gz::msgs::Boolean &_msg)
+{
+  std::lock_guard<std::mutex> lock(configMutex_);
+  pendingEnableParticleEmitter_ = _msg.data();
+  runtimeConfigDirty_ = true;
+  runtimeEmitterDirty_ = true;
+}
+
+void SprayPaintPlugin::ApplyRuntimeConfig(EntityComponentManager &_ecm)
+{
+  bool configDirty = false;
+  bool raysDirty = false;
+  bool emitterDirty = false;
+
+  {
+    std::lock_guard<std::mutex> lock(configMutex_);
+    configDirty = runtimeConfigDirty_;
+    raysDirty = runtimeRaysDirty_;
+    emitterDirty = runtimeEmitterDirty_;
+    if (configDirty)
+    {
+      sprayColor_ = pendingSprayColor_;
+      coneHalfAngle_ = pendingConeHalfAngle_;
+      coneMaxRange_ = pendingConeMaxRange_;
+      particleRate_ = pendingParticleRate_;
+      patchSpacing_ = pendingPatchSpacing_;
+      paintIntervalSteps_ = pendingPaintIntervalSteps_;
+      numRays_ = pendingNumRays_;
+      enableParticleEmitter_ = pendingEnableParticleEmitter_;
+    }
+    runtimeConfigDirty_ = false;
+    runtimeRaysDirty_ = false;
+    runtimeEmitterDirty_ = false;
+  }
+
+  if (!configDirty)
+    return;
+
+  Log("RuntimeConfig", "spray_color",
+      "R=" + std::to_string(sprayColor_.R()) +
+      " G=" + std::to_string(sprayColor_.G()) +
+      " B=" + std::to_string(sprayColor_.B()) +
+      " A=" + std::to_string(sprayColor_.A()));
+  Log("RuntimeConfig", "half_angle",
+      std::to_string(coneHalfAngle_ * 180.0 / M_PI) + " deg");
+  Log("RuntimeConfig", "max_range", std::to_string(coneMaxRange_) + " m");
+  Log("RuntimeConfig", "particle_rate", std::to_string(particleRate_) + " /s");
+  Log("RuntimeConfig", "num_rays", std::to_string(numRays_));
+  Log("RuntimeConfig", "patch_spacing", std::to_string(patchSpacing_) + " m");
+  Log("RuntimeConfig", "paint_interval",
+      std::to_string(paintIntervalSteps_) + " steps");
+  Log("RuntimeConfig", "particle_emitter",
+      enableParticleEmitter_ ? "enabled" : "disabled");
+
+  if (raysDirty && nozzleEntity_ != kNullEntity && _ecm.HasEntity(nozzleEntity_))
+  {
+    gz::sim::components::RaycastDataInfo rayData;
+    for (const auto &ray : GenerateConeRays())
+      rayData.rays.push_back({ray.first, ray.second});
+
+    _ecm.RemoveComponent<gz::sim::components::RaycastData>(nozzleEntity_);
+    _ecm.CreateComponent(nozzleEntity_,
+        gz::sim::components::RaycastData(rayData));
+
+    raysAttached_ = true;
+    Log("RuntimeConfig", "raycast",
+        std::to_string(numRays_) + " cone rays applied");
+  }
+
+  if (emitterDirty && emitterEntity_ != kNullEntity)
+  {
+    _ecm.RequestRemoveEntity(emitterEntity_);
+    emitterEntity_ = kNullEntity;
+    lastEmitterState_ = false;
+    Log("RuntimeConfig", "emitter", "removed so updated settings apply on next spray");
+  }
+}
+
 // PreUpdate
 
 /**
@@ -401,6 +622,8 @@ void SprayPaintPlugin::PreUpdate(
     const UpdateInfo & /*_info*/,
     EntityComponentManager &_ecm)
 {
+  ApplyRuntimeConfig(_ecm);
+
   // STEP 1: Nozzle validity check
   if (nozzleEntity_ != kNullEntity && !_ecm.HasEntity(nozzleEntity_))
   {

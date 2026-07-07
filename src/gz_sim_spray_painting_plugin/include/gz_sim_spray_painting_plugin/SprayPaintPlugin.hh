@@ -14,6 +14,9 @@
 #include <gz/math/Pose3.hh>
 #include <gz/math/Vector3.hh>
 #include <gz/msgs/boolean.pb.h>
+#include <gz/msgs/color.pb.h>
+#include <gz/msgs/double.pb.h>
+#include <gz/msgs/int32.pb.h>
 #include <gz/sim/Entity.hh>
 #include <gz/sim/EntityComponentManager.hh>
 #include <gz/sim/EventManager.hh>
@@ -39,6 +42,9 @@ namespace gz::sim::systems
 ///   <cone_max_range>       3.0                    </cone_max_range>
 ///   <spray_color>          1.0 0.2 0.1 1.0        </spray_color>
 ///   <spray_topic>          /spray_paint/trigger    </spray_topic>
+///   <spray_color_topic>    <spray_topic>/color     </spray_color_topic>
+///   <spray_cone_topic>     <spray_topic>/cone_half_angle_deg</spray_cone_topic>
+///   <spray_range_topic>    <spray_topic>/range     </spray_range_topic>
 class SprayPaintPlugin
     : public System
     , public ISystemConfigure
@@ -58,6 +64,15 @@ public:
 
 private:
   void OnSprayMsg(const gz::msgs::Boolean &_msg);
+  void OnSprayColorMsg(const gz::msgs::Color &_msg);
+  void OnConeHalfAngleMsg(const gz::msgs::Double &_msg);
+  void OnConeMaxRangeMsg(const gz::msgs::Double &_msg);
+  void OnParticleRateMsg(const gz::msgs::Double &_msg);
+  void OnNumRaysMsg(const gz::msgs::Int32 &_msg);
+  void OnPatchSpacingMsg(const gz::msgs::Double &_msg);
+  void OnPaintIntervalStepsMsg(const gz::msgs::Int32 &_msg);
+  void OnEnableParticleEmitterMsg(const gz::msgs::Boolean &_msg);
+  void ApplyRuntimeConfig(EntityComponentManager &_ecm);
 
   // Config
   std::string     nozzleLink_{"spray_gun_nozzle_link"};
@@ -65,12 +80,32 @@ private:
   double          coneMaxRange_{3.0};
   gz::math::Color sprayColor_{1.0f, 0.2f, 0.1f, 1.0f};
   std::string     sprayTopic_{"/spray_paint/trigger"};
+  std::string     sprayColorTopic_;
+  std::string     sprayConeTopic_;
+  std::string     sprayRangeTopic_;
+  std::string     sprayParticleRateTopic_;
+  std::string     sprayNumRaysTopic_;
+  std::string     sprayPatchSpacingTopic_;
+  std::string     sprayPaintIntervalStepsTopic_;
+  std::string     sprayEnableParticleEmitterTopic_;
 
   double   particleRate_{100.0};      // particles/s  (SDF: <particle_rate>)
   double   patchSpacing_{0.02};       // min patch centre gap in m (SDF: <patch_spacing>)
   uint32_t paintIntervalSteps_{10};   // paint scan every N steps (SDF: <paint_interval_steps>)
   int      numRays_{16};              // cone rays per scan (SDF: <num_rays>)
   bool     enableParticleEmitter_{true}; // SDF: <enable_particle_emitter>
+  std::mutex configMutex_;
+  double          pendingConeHalfAngle_{0.2618};
+  double          pendingConeMaxRange_{3.0};
+  gz::math::Color pendingSprayColor_{1.0f, 0.2f, 0.1f, 1.0f};
+  double          pendingParticleRate_{100.0};
+  double          pendingPatchSpacing_{0.02};
+  uint32_t        pendingPaintIntervalSteps_{10};
+  int             pendingNumRays_{16};
+  bool            pendingEnableParticleEmitter_{true};
+  bool       runtimeConfigDirty_{false};
+  bool       runtimeRaysDirty_{false};
+  bool       runtimeEmitterDirty_{false};
 
   // Runtime
   std::atomic<bool>      sprayActive_{false};
